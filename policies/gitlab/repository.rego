@@ -404,6 +404,26 @@ secret_push_protection_not_enabled := false {
 
 # METADATA
 # scope: rule
+# title: CI/CD Includes Should Be Pinned To A Full Length Commit SHA
+# description: >
+#     This project's CI/CD configuration (or one of its local includes) references an external project, CI/CD component, or remote file without pinning it to a full-length commit SHA. A floating branch/tag can be repointed by its maintainer - or by an attacker who compromises their account - to different, potentially malicious, content without any corresponding change in this project, silently altering what runs in your pipeline. Remote (`include: remote:`) includes are flagged unconditionally, since they aren't backed by a Git ref and can never be pinned to a commit.
+# custom:
+#   remediationSteps:
+#     - 1. Open the flagged CI/CD configuration file
+#     - 2. For 'project' includes, replace the 'ref' with the full-length commit SHA it currently points to
+#     - 3. For 'component' includes, replace the version suffix (after the last '@') with the full-length commit SHA it currently points to
+#     - 4. For 'remote' includes, consider vendoring the file locally (so it's versioned with your own commits) instead of fetching it from an external URL
+#   severity: MEDIUM
+#   threat: A compromised or malicious maintainer of an included project, component, or remote file can repoint a mutable reference to arbitrary pipeline configuration, which would then run with the permissions of the pipeline (including access to CI/CD variables and secrets) on every subsequent run, without this project's owners reviewing a code change.
+default ci_includes_not_pinned_to_full_length_commit_sha := true
+
+ci_includes_not_pinned_to_full_length_commit_sha := false {
+	is_array(input.unpinned_ci_includes)
+	count(input.unpinned_ci_includes) == 0
+}
+
+# METADATA
+# scope: rule
 # title: Public Projects Should Not Use Shared Runners
 # description: |
 #       Shared runners (instance-wide or group-wide) are enabled for this public project.

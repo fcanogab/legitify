@@ -630,6 +630,26 @@ scorecard_score_too_low := false {
 
 # METADATA
 # scope: rule
+# title: Actions Should Be Pinned To A Full Length Commit SHA
+# description: One or more workflow files in this repository reference an action (or reusable workflow) by a mutable tag or branch name instead of a full-length commit SHA. A tag/branch can be repointed by its maintainer - or by an attacker who compromises their account - to a different, potentially malicious, commit without any corresponding change in this repository, silently altering what code runs in your CI/CD pipeline.
+# custom:
+#   remediationSteps:
+#     - 1. Open each flagged workflow file
+#     - 2. Replace the action's tag/branch reference (e.g. @v4) with the full-length commit SHA it currently points to
+#     - 3. Add a trailing comment with the human-readable version for readability (e.g. 'actions/checkout@<sha> # v4.1.1')
+#     - 4. Consider using a tool such as Dependabot or Renovate to keep pinned SHAs up to date automatically
+#   severity: MEDIUM
+#   requiredScopes: [repo]
+#   threat: A compromised or malicious action maintainer can repoint a mutable tag/branch to arbitrary code, which would then run with the permissions of the workflow (including access to secrets) on every subsequent run, without the repository owner reviewing a code change.
+default actions_not_pinned_to_full_length_commit_sha := true
+
+actions_not_pinned_to_full_length_commit_sha := false {
+	is_array(input.unpinned_actions)
+	count(input.unpinned_actions) == 0
+}
+
+# METADATA
+# scope: rule
 # title: Default Workflow Token Permission Should Be Set To Read Only
 # description: The default GitHub Action workflow token permission is set to read-write. When creating workflow tokens, it is highly recommended to follow the Principle of Least Privilege and force workflow authors to specify explicitly which permissions they need.
 # custom:

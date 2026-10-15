@@ -318,6 +318,7 @@ func (rc *repositoryCollector) extendedCollection(completeProjectsList *gitlab2.
 		rc.extendProjectWithMinimumRequiredApprovals,
 		rc.extendProjectWithRenovateStatus,
 		rc.extendProjectWithSecretPushProtection,
+		rc.extendProjectWithUnpinnedCIIncludes,
 	}
 	var err error
 	for _, f := range extensionFunctions {

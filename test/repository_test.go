@@ -393,6 +393,39 @@ func TestRepositorySecretScanning(t *testing.T) {
 	}
 }
 
+func TestRepositoryUnpinnedActions(t *testing.T) {
+	name := "repository has unpinned actions"
+	testedPolicyName := "actions_not_pinned_to_full_length_commit_sha"
+	makeMockData := func(unpinned []githubcollected.UnpinnedAction) githubcollected.Repository {
+		return githubcollected.Repository{
+			UnpinnedActions: unpinned,
+		}
+	}
+
+	tests := []struct {
+		name             string
+		shouldBeViolated bool
+		unpinned         []githubcollected.UnpinnedAction
+	}{
+		{
+			name:             "no unpinned actions",
+			shouldBeViolated: false,
+			unpinned:         []githubcollected.UnpinnedAction{},
+		},
+		{
+			name:             "one unpinned action",
+			shouldBeViolated: true,
+			unpinned: []githubcollected.UnpinnedAction{
+				{Path: ".github/workflows/ci.yml", Uses: "actions/checkout@v4", Line: 10},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		repositoryTestTemplate(t, name+" - "+test.name, makeMockData(test.unpinned), testedPolicyName, test.shouldBeViolated, scm_type.GitHub)
+	}
+}
+
 func TestGitlabRepositoryTooManyAdmins(t *testing.T) {
 	name := "Project Has Too Many Owners"
 	testedPolicyName := "project_has_too_many_admins"
@@ -891,5 +924,47 @@ func TestGitlabRepositorySecretPushProtection(t *testing.T) {
 
 	for _, test := range tests {
 		repositoryTestTemplate(t, name+" - "+test.name, makeMockData(test.enabled), testedPolicyName, test.shouldBeViolated, scm_type.GitLab)
+	}
+}
+
+func TestGitlabRepositoryUnpinnedCIIncludes(t *testing.T) {
+	name := "CI/CD Includes Should Be Pinned To A Full Length Commit SHA"
+	testedPolicyName := "ci_includes_not_pinned_to_full_length_commit_sha"
+
+	makeMockData := func(unpinned []gitlabcollected.UnpinnedCIInclude) gitlabcollected.Repository {
+		return gitlabcollected.Repository{
+			Project:            &gitlab2.Project{},
+			UnpinnedCIIncludes: unpinned,
+		}
+	}
+
+	tests := []struct {
+		name             string
+		shouldBeViolated bool
+		unpinned         []gitlabcollected.UnpinnedCIInclude
+	}{
+		{
+			name:             "no unpinned includes",
+			shouldBeViolated: false,
+			unpinned:         []gitlabcollected.UnpinnedCIInclude{},
+		},
+		{
+			name:             "one unpinned project include",
+			shouldBeViolated: true,
+			unpinned: []gitlabcollected.UnpinnedCIInclude{
+				{SourceFile: ".gitlab-ci.yml", Type: "project", Reference: "my-group/my-templates@main"},
+			},
+		},
+		{
+			name:             "one unpinned remote include",
+			shouldBeViolated: true,
+			unpinned: []gitlabcollected.UnpinnedCIInclude{
+				{SourceFile: ".gitlab-ci.yml", Type: "remote", Reference: "https://example.com/ci.yml"},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		repositoryTestTemplate(t, name+" - "+test.name, makeMockData(test.unpinned), testedPolicyName, test.shouldBeViolated, scm_type.GitLab)
 	}
 }

@@ -246,6 +246,7 @@ func (rc *repositoryCollector) collectExtraData(login string,
 	repo = rc.withRepositoryHooks(repo, login)
 	repo = rc.withRepoCollaborators(repo, login)
 	repo = rc.withActionsSettings(repo, login)
+	repo = rc.withUnpinnedActions(repo, login)
 	repo, err = rc.withSecrets(repo, login)
 	if err != nil {
 		log.Printf("failed to collect repository secrets for %s: %s", repo.Repository.Name, err)
@@ -414,7 +415,7 @@ func (rc *repositoryCollector) withSecrets(repository ghcollected.Repository, lo
 }
 
 func (rc *repositoryCollector) withSecurityAndAnalysis(repo ghcollected.Repository, login string) (ghcollected.Repository, error) {
-	
+
 	securityAndAnalysis, err := rc.Client.GetSecurityAndAnalysisForRepository(repo.Name(), login)
 	if err != nil {
 		return repo, err
@@ -482,7 +483,7 @@ func (rc *repositoryCollector) checkMissingPermissions(repo ghcollected.Reposito
 	return missingPermissions
 }
 
-func checkRepoAdminPermission(roles []permissions.RepositoryRole) bool{
+func checkRepoAdminPermission(roles []permissions.RepositoryRole) bool {
 	for _, role := range roles {
 		if (permissions.IsRepositoryRole(role) && role == permissions.RepoRoleAdmin) ||
 			(permissions.IsOrgRole(role) && role == permissions.OrgRoleOwner) {
