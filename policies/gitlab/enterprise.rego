@@ -222,3 +222,26 @@ default unauthenticated_signup_enabled := true
 unauthenticated_signup_enabled := false {
     not input.signup_enabled
 }
+
+# METADATA
+# scope: rule
+# title: Personal Access Token Expiration Should Be Enforced
+# description: >
+#     The server does not enforce an expiration date on personal access tokens. Members can therefore create tokens that never expire, which never need to be rotated. If such a token is leaked (e.g. committed to a repository, left on a compromised workstation, or exposed by a misconfigured CI job), it grants an attacker long-term, unmonitored access to the server's resources until someone notices and manually revokes it.
+# custom:
+#   severity: MEDIUM
+#   remediationSteps:
+#     - 1. Go to the admin page: Menu -> Admin
+#     - 2. Press Settings -> General
+#     - 3. Expand 'Account and limit' section
+#     - 4. Toggle 'Enforce personal access token expiration'
+#     - 5. Press 'Save Changes'
+#   threat:
+#     - A member creates a personal access token without an expiration date, for convenience or because of an automated script
+#     - The token is accidentally leaked (e.g. committed to a public repository, or stolen from a compromised workstation)
+#     - Since the token never expires, an attacker can use it indefinitely, with no built-in deadline forcing detection or rotation
+default personal_access_token_expiration_not_enforced := true
+
+personal_access_token_expiration_not_enforced := false {
+    input.enforce_pat_expiration
+}
