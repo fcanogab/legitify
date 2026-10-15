@@ -401,3 +401,33 @@ default secret_push_protection_not_enabled := true
 secret_push_protection_not_enabled := false {
 	input.secret_push_protection_enabled
 }
+
+# METADATA
+# scope: rule
+# title: Public Projects Should Not Use Shared Runners
+# description: |
+#       Shared runners (instance-wide or group-wide) are enabled for this public project.
+#       Anyone can open a merge request against a public project - including unauthenticated users via a fork -
+#       and its pipeline will run on the same runners used by the rest of the group/instance.
+#       GitLab's own security guidance recommends against using shared runners for public projects for this reason:
+#       https://docs.gitlab.com/runner/security/
+# custom:
+#   severity: HIGH
+#   remediationSteps:
+#     - 1. Go to the project's Settings page
+#     - 2. Enter the 'CI/CD' tab
+#     - 3. Expand the 'Runners' section
+#     - 4. Toggle off 'Enable shared runners for this project'
+#   threat:
+#     - Shared runners are often part of the organization's private network and can be easily misconfigured or persistent (not fully ephemeral/isolated per job).
+#     - Any user - including anonymous users forking a public project - can open a merge request whose pipeline executes on these shared runners.
+#     - If the runner isn't properly isolated, this can be used to steal CI/CD secrets or pivot into the organization's internal network.
+default project_allows_public_fork_to_use_shared_runners := true
+
+project_allows_public_fork_to_use_shared_runners := false {
+	not input.public
+}
+
+project_allows_public_fork_to_use_shared_runners := false {
+	not input.shared_runners_enabled
+}

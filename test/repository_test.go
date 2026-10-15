@@ -752,6 +752,52 @@ func TestGitlabRepositoryDismissStaleReviews(t *testing.T) {
 	}
 }
 
+func TestGitlabRepositoryPublicForkCanUseSharedRunners(t *testing.T) {
+	name := "Public Projects Should Not Use Shared Runners"
+	testedPolicyName := "project_allows_public_fork_to_use_shared_runners"
+
+	makeMockData := func(public bool, sharedRunnersEnabled bool) gitlabcollected.Repository {
+		return gitlabcollected.Repository{Project: &gitlab2.Project{Public: public, SharedRunnersEnabled: sharedRunnersEnabled}}
+	}
+
+	tests := []struct {
+		name                 string
+		public               bool
+		sharedRunnersEnabled bool
+		shouldBeViolated     bool
+	}{
+		{
+			name:                 "public project with shared runners enabled",
+			public:               true,
+			sharedRunnersEnabled: true,
+			shouldBeViolated:     true,
+		},
+		{
+			name:                 "public project with shared runners disabled",
+			public:               true,
+			sharedRunnersEnabled: false,
+			shouldBeViolated:     false,
+		},
+		{
+			name:                 "private project with shared runners enabled",
+			public:               false,
+			sharedRunnersEnabled: true,
+			shouldBeViolated:     false,
+		},
+		{
+			name:                 "private project with shared runners disabled",
+			public:               false,
+			sharedRunnersEnabled: false,
+			shouldBeViolated:     false,
+		},
+	}
+
+	for _, test := range tests {
+		repositoryTestTemplate(t, name+" - "+test.name, makeMockData(test.public, test.sharedRunnersEnabled),
+			testedPolicyName, test.shouldBeViolated, scm_type.GitLab)
+	}
+}
+
 func TestGitlabRepositoryRestrictsOverrideVariables(t *testing.T) {
 	name := "Restrict Override Of Defined Variables"
 	testedPolicyName := "overriding_defined_variables_isnt_restricted"
