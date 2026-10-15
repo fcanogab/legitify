@@ -74,10 +74,17 @@ func (c *runnerCollector) discoverRunners() (map[int]runnerOwner, error) {
 		}
 	}
 
-	gw := group_waiter.New()
+	// Two independent, separately-bounded waiters are used here rather than a single
+	// one: groupsGw's work (listing a group's projects) itself submits work to
+	// projectsGw. Sharing one semaphore between both levels could deadlock once
+	// maxConcurrentRequests groups are all blocked waiting for a projectsGw slot that
+	// can only be freed by project work the groupsGw goroutines haven't been able to
+	// submit yet.
+	groupsGw := group_waiter.NewWithLimit(maxConcurrentRequests)
+	projectsGw := group_waiter.NewWithLimit(maxConcurrentRequests)
 	for _, g := range groups {
 		g := g
-		gw.Do(func() {
+		groupsGw.Do(func() {
 			groupRunners, err := pagination.New[*gitlab2.Runner](c.Client.Client().Runners.ListGroupsRunners, nil).Sync(g.ID)
 			if err != nil {
 				log.Printf("failed to list runners for group %s (%d): %v", g.Name, g.ID, err)
@@ -93,7 +100,7 @@ func (c *runnerCollector) discoverRunners() (map[int]runnerOwner, error) {
 				}
 				for _, p := range res.Collected {
 					p := p
-					gw.Do(func() {
+					projectsGw.Do(func() {
 						projectRunners, err := pagination.New[*gitlab2.Runner](c.Client.Client().Runners.ListProjectRunners, nil).Sync(p.ID)
 						if err != nil {
 							log.Printf("failed to list runners for project %s (%d): %v", p.PathWithNamespace, p.ID, err)
@@ -105,7 +112,8 @@ func (c *runnerCollector) discoverRunners() (map[int]runnerOwner, error) {
 			}
 		})
 	}
-	gw.Wait()
+	groupsGw.Wait()
+	projectsGw.Wait()
 
 	return owners, nil
 }
@@ -128,7 +136,7 @@ func (c *runnerCollector) Collect() collectors.SubCollectorChannels {
 			return
 		}
 
-		gw := group_waiter.New()
+		gw := group_waiter.NewWithLimit(maxConcurrentRequests)
 		for id, owner := range owners {
 			id, owner := id, owner
 			gw.Do(func() {
