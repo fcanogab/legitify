@@ -363,3 +363,23 @@ default overriding_defined_variables_isnt_restricted := true
 overriding_defined_variables_isnt_restricted := false {
 	input.restrict_user_defined_variables
 }
+
+# METADATA
+# scope: rule
+# title: Project Should Have Automated Dependency Updates Enabled
+# description: Enable an automated dependency-update tool (such as Renovate) to regularly scan for and patch outdated or vulnerable dependencies. This check looks for a Renovate configuration file in the repository, or for branches created by Renovate (e.g. a centrally/self-hosted configured instance with no local config file).
+# custom:
+#   remediationSteps:
+#     - 1. Add a renovate.json (or .gitlab/renovate.json) configuration file to the repository, following https://docs.renovatebot.com/configuration-options/
+#     - 2. Alternatively, onboard the repository to a self-hosted or centrally configured Renovate instance
+#   severity: MEDIUM
+#   threat: Outdated dependencies may contain known vulnerabilities that remain unpatched without an automated update process, exposing the repository to 1-day attacks.
+default renovate_not_enabled := true
+
+renovate_not_enabled := false {
+	input.renovate_config_path != ""
+}
+
+renovate_not_enabled := false {
+	count(input.renovate_branches) > 0
+}
