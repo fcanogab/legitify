@@ -426,6 +426,56 @@ func TestRepositoryUnpinnedActions(t *testing.T) {
 	}
 }
 
+func TestRepositoryDangerousWorkflowTriggers(t *testing.T) {
+	name := "repository has a workflow checking out untrusted fork code on a privileged trigger"
+	testedPolicyName := "workflow_checks_out_untrusted_code_on_privileged_trigger"
+	makeMockData := func(triggers []githubcollected.DangerousWorkflowTrigger) githubcollected.Repository {
+		return githubcollected.Repository{
+			DangerousWorkflowTriggers: triggers,
+		}
+	}
+
+	tests := []struct {
+		name             string
+		shouldBeViolated bool
+		triggers         []githubcollected.DangerousWorkflowTrigger
+	}{
+		{
+			name:             "no dangerous triggers",
+			shouldBeViolated: false,
+			triggers:         []githubcollected.DangerousWorkflowTrigger{},
+		},
+		{
+			name:             "pull_request_target checks out fork head sha",
+			shouldBeViolated: true,
+			triggers: []githubcollected.DangerousWorkflowTrigger{
+				{
+					Path:    ".github/workflows/ci.yml",
+					Trigger: "pull_request_target",
+					Ref:     "${{ github.event.pull_request.head.sha }}",
+					Line:    12,
+				},
+			},
+		},
+		{
+			name:             "workflow_run checks out triggering run's head sha",
+			shouldBeViolated: true,
+			triggers: []githubcollected.DangerousWorkflowTrigger{
+				{
+					Path:    ".github/workflows/post-build.yml",
+					Trigger: "workflow_run",
+					Ref:     "${{ github.event.workflow_run.head_sha }}",
+					Line:    15,
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		repositoryTestTemplate(t, name+" - "+test.name, makeMockData(test.triggers), testedPolicyName, test.shouldBeViolated, scm_type.GitHub)
+	}
+}
+
 func TestGitlabRepositoryTooManyAdmins(t *testing.T) {
 	name := "Project Has Too Many Owners"
 	testedPolicyName := "project_has_too_many_admins"
@@ -966,5 +1016,28 @@ func TestGitlabRepositoryUnpinnedCIIncludes(t *testing.T) {
 
 	for _, test := range tests {
 		repositoryTestTemplate(t, name+" - "+test.name, makeMockData(test.unpinned), testedPolicyName, test.shouldBeViolated, scm_type.GitLab)
+	}
+}
+
+func TestGitlabRepositoryForkMergeRequestPipelinesRunInParentProject(t *testing.T) {
+	name := "Fork Merge Request Pipelines Should Not Run In The Parent Project"
+	testedPolicyName := "fork_merge_request_pipelines_can_run_in_parent_project"
+
+	makeMockData := func(allowed bool) gitlabcollected.Repository {
+		return gitlabcollected.Repository{
+			Project: &gitlab2.Project{
+				CIAllowForkPipelinesToRunInParentProject: allowed,
+			},
+		}
+	}
+
+	options := map[bool]bool{
+		true:  true,  // allowed (GitLab's default) - violation
+		false: false, // disabled - compliant
+	}
+
+	for _, expectFailure := range bools {
+		allowed := options[expectFailure]
+		repositoryTestTemplate(t, name, makeMockData(allowed), testedPolicyName, expectFailure, scm_type.GitLab)
 	}
 }

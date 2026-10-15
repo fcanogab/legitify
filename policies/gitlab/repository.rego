@@ -451,3 +451,27 @@ project_allows_public_fork_to_use_shared_runners := false {
 project_allows_public_fork_to_use_shared_runners := false {
 	not input.shared_runners_enabled
 }
+
+# METADATA
+# scope: rule
+# title: Fork Merge Request Pipelines Should Not Run In The Parent Project
+# description: >
+#     This project allows pipelines for merge requests from forked projects to be run in the context of this (parent) project, instead of the fork's own context. GitLab enables this setting by default. When enabled, a maintainer of this project can choose to run a fork's merge request pipeline "in the parent project", which grants that pipeline access to this project's protected CI/CD variables and runners - the same privileged context a push to this project would get - even though the pipeline's code (the '.gitlab-ci.yml' and the branch it runs on) comes entirely from the external fork. This is the GitLab equivalent of GitHub's "Pwn Request" pattern: untrusted, fork-originated pipeline code running with privileged, secret-bearing access.
+# custom:
+#   remediationSteps:
+#     - 1. Make sure you have at least Maintainer access to the project
+#     - 2. Using the GitLab API, send a 'PUT' request to '/projects/:id' with 'ci_allow_fork_pipelines_to_run_in_parent_project=false' (there is currently no dedicated UI toggle for this setting)
+#     - 3. Verify the change by sending a 'GET' request to '/projects/:id' and confirming 'ci_allow_fork_pipelines_to_run_in_parent_project' is 'false'
+#   severity: HIGH
+#   requiredScopes: [api]
+#   threat:
+#     - This misconfiguration could lead to the following attack:
+#     - 1. Attacker forks the project and opens a merge request with a malicious change to the pipeline configuration or to code executed by it (e.g. a build script)
+#     - 2. A maintainer (or, in some configurations, any user) chooses to run the merge request's pipeline in the parent project's context
+#     - 3. The pipeline runs with access to the parent project's protected CI/CD variables/secrets and its runners
+#     - 4. The attacker's payload exfiltrates those secrets, or uses the runner's access to pivot further into the organization's infrastructure
+default fork_merge_request_pipelines_can_run_in_parent_project := true
+
+fork_merge_request_pipelines_can_run_in_parent_project := false {
+	not input.ci_allow_fork_pipelines_to_run_in_parent_project
+}
