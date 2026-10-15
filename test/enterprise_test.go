@@ -2,9 +2,12 @@ package test
 
 import (
 	githubcollected "github.com/Legit-Labs/legitify/internal/collected/github"
+	gitlabcollected "github.com/Legit-Labs/legitify/internal/collected/gitlab_collected"
 	"github.com/Legit-Labs/legitify/internal/common/namespace"
 	"github.com/Legit-Labs/legitify/internal/common/scm_type"
 	"testing"
+
+	gitlab2 "github.com/xanzy/go-gitlab"
 )
 
 func makeEnterpriseForPolicy(policy string) githubcollected.Enterprise {
@@ -49,4 +52,33 @@ func TestEnterpriseNotificationRestrictionPolicy(t *testing.T) {
 func enterpriseTestTemplate(t *testing.T, name string, mockData githubcollected.Enterprise, testedPolicyName string, expectFailure bool, scmType scm_type.ScmType) {
 	ns := namespace.Enterprise
 	PolicyTestTemplate(t, name, mockData, ns, testedPolicyName, expectFailure, scmType)
+}
+
+func TestGitLabServerPersonalAccessTokenExpirationPolicy(t *testing.T) {
+	testedPolicyName := "personal_access_token_expiration_not_enforced"
+	ns := namespace.Enterprise
+
+	tests := []struct {
+		name             string
+		shouldBeViolated bool
+		enforced         bool
+	}{
+		{
+			name:             "PAT expiration is enforced",
+			shouldBeViolated: false,
+			enforced:         true,
+		},
+		{
+			name:             "PAT expiration is not enforced",
+			shouldBeViolated: true,
+			enforced:         false,
+		},
+	}
+
+	for _, test := range tests {
+		mockData := gitlabcollected.NewServer("https://gitlab.example.com", &gitlab2.Settings{
+			EnforcePATExpiration: test.enforced,
+		})
+		PolicyTestTemplate(t, test.name, mockData, ns, testedPolicyName, test.shouldBeViolated, scm_type.GitLab)
+	}
 }
