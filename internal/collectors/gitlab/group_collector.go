@@ -47,7 +47,7 @@ func (c *groupCollector) Collect() collectors.SubCollectorChannels {
 			return
 		}
 
-		gw := group_waiter.New()
+		gw := group_waiter.NewWithLimit(maxConcurrentRequests)
 
 		for _, g := range groups {
 			g := g

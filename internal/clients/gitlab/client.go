@@ -38,12 +38,18 @@ func (c *Client) GraphQLClient() *graphql.Client {
 }
 
 func NewClient(ctx context.Context, token string, endpoint string, orgs []string) (*Client, error) {
-	var config []gitlab.ClientOptionFunc
+	// Always apply the rate-limit-aware backoff/retry policy (see transport.RateLimitBackoff
+	// for why go-gitlab's default 429 handling isn't enough), regardless of whether a custom
+	// endpoint is configured.
+	config := []gitlab.ClientOptionFunc{
+		gitlab.WithCustomBackoff(transport.RateLimitBackoff),
+		gitlab.WithCustomRetryMax(transport.MaxRetries),
+	}
 	if endpoint != "" {
-		config = []gitlab.ClientOptionFunc{
+		config = append(config,
 			gitlab.WithBaseURL(endpoint),
 			gitlab.WithHTTPClient(transport.NewHttpClient()),
-		}
+		)
 	}
 
 	git, err := gitlab.NewClient(token, config...)

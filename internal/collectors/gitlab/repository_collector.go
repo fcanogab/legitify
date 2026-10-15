@@ -69,7 +69,7 @@ func (rc *repositoryCollector) CollectTotalEntities() int {
 	}
 
 	var total atomic.Int64
-	gw := group_waiter.New()
+	gw := group_waiter.NewWithLimit(maxConcurrentRequests)
 	for _, group := range groups {
 		group := group
 		gw.Do(func() {
@@ -98,7 +98,7 @@ func (rc *repositoryCollector) Collect() collectors.SubCollectorChannels {
 
 func (rc *repositoryCollector) collectSpecific(repositories []types.RepositoryWithOwner) collectors.SubCollectorChannels {
 	return rc.WrappedCollection(func() {
-		gw := group_waiter.New()
+		gw := group_waiter.NewWithLimit(maxConcurrentRequests)
 		for _, r := range repositories {
 			r := r
 			gw.Do(func() {
@@ -281,10 +281,17 @@ func (rc *repositoryCollector) collectAll() collectors.SubCollectorChannels {
 			log.Printf("failed to collect list of groups to get repositories  %s", err)
 			return
 		}
-		gw := group_waiter.New()
+		// Two independent, separately-bounded waiters are used here rather than a
+		// single one: groupsGw's work (listing a group's projects) itself submits
+		// work to projectsGw. Sharing one semaphore between both levels could
+		// deadlock once maxConcurrentRequests groups are all blocked waiting for a
+		// projectsGw slot that can only be freed by project work the groupsGw
+		// goroutines haven't been able to submit yet.
+		groupsGw := group_waiter.NewWithLimit(maxConcurrentRequests)
+		projectsGw := group_waiter.NewWithLimit(maxConcurrentRequests)
 		for _, group := range groups {
 			g := group
-			gw.Do(func() {
+			groupsGw.Do(func() {
 				ch := pagination.New[*gitlab2.Project](rc.Client.Client().Groups.ListGroupProjects, nil).Async(g.ID)
 				for res := range ch {
 					if res.Err != nil {
@@ -293,14 +300,15 @@ func (rc *repositoryCollector) collectAll() collectors.SubCollectorChannels {
 					}
 					for _, completedProject := range res.Collected {
 						completedProject := completedProject
-						gw.Do(func() {
+						projectsGw.Do(func() {
 							rc.extendedCollection(completedProject, rc.Client.IsGroupPremium(g.FullPath), rc.Client.IsGroupUltimate(g.FullPath))
 						})
 					}
 				}
 			})
 		}
-		gw.Wait()
+		groupsGw.Wait()
+		projectsGw.Wait()
 	})
 }
 

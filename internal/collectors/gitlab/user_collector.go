@@ -37,7 +37,7 @@ func (c *userCollector) CollectTotalEntities() int {
 	}
 
 	totalGroupMembers := 0
-	gw := group_waiter.New()
+	gw := group_waiter.NewWithLimit(maxConcurrentRequests)
 	for _, g := range groups {
 		group := g
 		gw.Do(func() {
@@ -62,7 +62,7 @@ func (c *userCollector) Collect() collectors.SubCollectorChannels {
 			return
 		}
 
-		gw := group_waiter.New()
+		gw := group_waiter.NewWithLimit(maxConcurrentRequests)
 
 		for _, group := range allGroups {
 			g := group
@@ -76,7 +76,7 @@ func (c *userCollector) Collect() collectors.SubCollectorChannels {
 }
 
 func (c *userCollector) collectGroupUsers(group *gitlab2.Group) {
-	gw := group_waiter.New()
+	gw := group_waiter.NewWithLimit(maxConcurrentRequests)
 
 	members, err := c.Client.GroupMembers(group)
 	if err != nil {
