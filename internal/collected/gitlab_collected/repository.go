@@ -7,15 +7,16 @@ import (
 
 type Repository struct {
 	*gitlab2.Project
-	Members                  []*gitlab2.ProjectMember       `json:"members,omitempty"`
-	ProtectedBranches        []*gitlab2.ProtectedBranch     `json:"protected_branches"`
-	Webhooks                 []*gitlab2.ProjectHook         `json:"webhooks"`
-	PushRules                *gitlab2.ProjectPushRules      `json:"push_rules"`
-	ApprovalConfiguration    *gitlab2.ProjectApprovals      `json:"approval_configuration"`
-	ApprovalRules            []*gitlab2.ProjectApprovalRule `json:"approval_rules"`
-	MinimumRequiredApprovals int                            `json:"minimum_required_approvals"`
-	RenovateConfigPath       string                         `json:"renovate_config_path,omitempty"`
-	RenovateBranches         []string                       `json:"renovate_branches,omitempty"`
+	Members                     []*gitlab2.ProjectMember       `json:"members,omitempty"`
+	ProtectedBranches           []*gitlab2.ProtectedBranch     `json:"protected_branches"`
+	Webhooks                    []*gitlab2.ProjectHook         `json:"webhooks"`
+	PushRules                   *gitlab2.ProjectPushRules      `json:"push_rules"`
+	ApprovalConfiguration       *gitlab2.ProjectApprovals      `json:"approval_configuration"`
+	ApprovalRules               []*gitlab2.ProjectApprovalRule `json:"approval_rules"`
+	MinimumRequiredApprovals    int                            `json:"minimum_required_approvals"`
+	RenovateConfigPath          string                         `json:"renovate_config_path,omitempty"`
+	RenovateBranches            []string                       `json:"renovate_branches,omitempty"`
+	SecretPushProtectionEnabled *bool                          `json:"secret_push_protection_enabled,omitempty"`
 }
 
 func (r Repository) ViolationEntityType() string {

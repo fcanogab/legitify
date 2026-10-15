@@ -806,3 +806,44 @@ func TestGitlabRepositoryRenovateEnabled(t *testing.T) {
 		}
 	}
 }
+
+func TestGitlabRepositorySecretPushProtection(t *testing.T) {
+	name := "Secret Push Protection Should Be Enabled"
+	testedPolicyName := "secret_push_protection_not_enabled"
+
+	makeMockData := func(enabled *bool) gitlabcollected.Repository {
+		return gitlabcollected.Repository{
+			Project:                     &gitlab2.Project{},
+			SecretPushProtectionEnabled: enabled,
+		}
+	}
+
+	boolTrue := true
+	boolFalse := false
+
+	tests := []struct {
+		name             string
+		shouldBeViolated bool
+		enabled          *bool
+	}{
+		{
+			name:             "secret push protection enabled",
+			shouldBeViolated: false,
+			enabled:          &boolTrue,
+		},
+		{
+			name:             "secret push protection disabled",
+			shouldBeViolated: true,
+			enabled:          &boolFalse,
+		},
+		{
+			name:             "secret push protection status unknown (e.g. collection failure)",
+			shouldBeViolated: true,
+			enabled:          nil,
+		},
+	}
+
+	for _, test := range tests {
+		repositoryTestTemplate(t, name+" - "+test.name, makeMockData(test.enabled), testedPolicyName, test.shouldBeViolated, scm_type.GitLab)
+	}
+}
