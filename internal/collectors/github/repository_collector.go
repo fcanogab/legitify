@@ -247,6 +247,7 @@ func (rc *repositoryCollector) collectExtraData(login string,
 	repo = rc.withRepoCollaborators(repo, login)
 	repo = rc.withActionsSettings(repo, login)
 	repo = rc.withUnpinnedActions(repo, login)
+	repo = rc.withDangerousWorkflowTriggers(repo, login)
 	repo, err = rc.withSecrets(repo, login)
 	if err != nil {
 		log.Printf("failed to collect repository secrets for %s: %s", repo.Repository.Name, err)

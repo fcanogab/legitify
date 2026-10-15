@@ -25,22 +25,28 @@ func isActionPinned(uses string) bool {
 	return pinnedActionRegex.MatchString(uses)
 }
 
-// withUnpinnedActions scans the repository's GitHub Actions workflow files
-// (.github/workflows/*) and records every action/reusable-workflow reference that
-// isn't pinned to a full-length commit SHA.
-func (rc *repositoryCollector) withUnpinnedActions(repo ghcollected.Repository, org string) ghcollected.Repository {
-	repo.UnpinnedActions = []ghcollected.UnpinnedAction{}
+// workflowFile is a single fetched GitHub Actions workflow file, ready to be parsed.
+type workflowFile struct {
+	path    string
+	content []byte
+}
 
+// listWorkflowFiles fetches every workflow file under the repository's
+// .github/workflows directory. It's shared by every check that needs to statically
+// analyze workflow YAML, so that checking out the directory and downloading each
+// file only happens once per repository regardless of how many such checks exist.
+func (rc *repositoryCollector) listWorkflowFiles(repoName, org string) []workflowFile {
 	const workflowsDir = ".github/workflows"
-	_, dirContents, resp, err := rc.Client.Client().Repositories.GetContents(rc.Context, org, repo.Name(), workflowsDir, nil)
+	_, dirContents, resp, err := rc.Client.Client().Repositories.GetContents(rc.Context, org, repoName, workflowsDir, nil)
 	if err != nil {
 		if resp != nil && resp.StatusCode == http.StatusNotFound {
-			return repo // no workflows directory - nothing to check
+			return nil // no workflows directory - nothing to check
 		}
-		log.Printf("failed to list workflows directory for %s: %s", repo.Name(), err)
-		return repo
+		log.Printf("failed to list workflows directory for %s: %s", repoName, err)
+		return nil
 	}
 
+	var files []workflowFile
 	for _, entry := range dirContents {
 		if entry.GetType() != "file" {
 			continue
@@ -50,19 +56,32 @@ func (rc *repositoryCollector) withUnpinnedActions(repo ghcollected.Repository, 
 			continue
 		}
 
-		fileContent, _, _, err := rc.Client.Client().Repositories.GetContents(rc.Context, org, repo.Name(), entry.GetPath(), nil)
+		fileContent, _, _, err := rc.Client.Client().Repositories.GetContents(rc.Context, org, repoName, entry.GetPath(), nil)
 		if err != nil || fileContent == nil {
-			log.Printf("failed to fetch workflow file %s for %s: %v", entry.GetPath(), repo.Name(), err)
+			log.Printf("failed to fetch workflow file %s for %s: %v", entry.GetPath(), repoName, err)
 			continue
 		}
 
 		content, err := fileContent.GetContent()
 		if err != nil {
-			log.Printf("failed to decode workflow file %s for %s: %v", entry.GetPath(), repo.Name(), err)
+			log.Printf("failed to decode workflow file %s for %s: %v", entry.GetPath(), repoName, err)
 			continue
 		}
 
-		repo.UnpinnedActions = append(repo.UnpinnedActions, unpinnedActionsInWorkflow(entry.GetPath(), []byte(content))...)
+		files = append(files, workflowFile{path: entry.GetPath(), content: []byte(content)})
+	}
+
+	return files
+}
+
+// withUnpinnedActions scans the repository's GitHub Actions workflow files
+// (.github/workflows/*) and records every action/reusable-workflow reference that
+// isn't pinned to a full-length commit SHA.
+func (rc *repositoryCollector) withUnpinnedActions(repo ghcollected.Repository, org string) ghcollected.Repository {
+	repo.UnpinnedActions = []ghcollected.UnpinnedAction{}
+
+	for _, f := range rc.listWorkflowFiles(repo.Name(), org) {
+		repo.UnpinnedActions = append(repo.UnpinnedActions, unpinnedActionsInWorkflow(f.path, f.content)...)
 	}
 
 	return repo

@@ -74,6 +74,7 @@ type Repository struct {
 	RepoSecrets                  []*RepositorySecret               `json:"repository_secrets,omitempty"`
 	SecurityAndAnalysis          *github.SecurityAndAnalysis       `json:"security_and_analysis,omitempty"`
 	UnpinnedActions              []UnpinnedAction                  `json:"unpinned_actions"`
+	DangerousWorkflowTriggers    []DangerousWorkflowTrigger        `json:"dangerous_workflow_triggers"`
 }
 
 type RepositorySecret struct {
@@ -88,6 +89,16 @@ type UnpinnedAction struct {
 	Path string `json:"path"`
 	Uses string `json:"uses"`
 	Line int    `json:"line"`
+}
+
+// DangerousWorkflowTrigger represents a workflow that combines a privileged trigger
+// (pull_request_target or workflow_run) with a checkout step that explicitly checks
+// out the triggering fork's untrusted ref/repository - the "Pwn Request" pattern.
+type DangerousWorkflowTrigger struct {
+	Path    string `json:"path"`
+	Trigger string `json:"trigger"`
+	Ref     string `json:"ref"`
+	Line    int    `json:"line"`
 }
 
 func (r Repository) ViolationEntityType() string {

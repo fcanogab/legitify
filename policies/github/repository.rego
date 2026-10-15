@@ -650,6 +650,32 @@ actions_not_pinned_to_full_length_commit_sha := false {
 
 # METADATA
 # scope: rule
+# title: Workflows Should Not Check Out Untrusted Code On Privileged Triggers
+# description: >
+#     One or more workflow files in this repository are triggered by 'pull_request_target' or 'workflow_run' - events that run with privileged, secret-bearing permissions even when triggered by a pull request from a fork - and contain an 'actions/checkout' step that explicitly checks out the triggering fork's untrusted ref/repository (e.g. 'github.event.pull_request.head.sha' or 'github.event.workflow_run.head_sha'). If that checked-out code is later built, tested, or otherwise executed, it runs with the workflow's privileged token and any configured secrets. This is commonly known as a "Pwn Request".
+# custom:
+#   remediationSteps:
+#     - 1. Open each flagged workflow file
+#     - 2. If you don't need to run code from the fork, remove the 'ref'/'repository' override from the checkout step entirely, so it checks out the trusted base ref instead
+#     - 3. If you do need to build/test the fork's code, do so in a separate workflow triggered by the safe 'pull_request' event instead (which never receives secrets or a write-scoped token for fork-originated runs)
+#     - 4. If you need both privileged access (e.g. to post a comment with results) and to run the fork's code, split the work into two workflows: an unprivileged 'pull_request'-triggered workflow that builds/tests the fork's code and uploads the results as an artifact, and a privileged 'workflow_run'-triggered workflow that only downloads and acts on that artifact, without ever checking out or executing the fork's code itself
+#   severity: HIGH
+#   requiredScopes: [repo]
+#   threat:
+#     - This misconfiguration could lead to the following attack:
+#     - 1. Attacker forks the repository and opens a pull request with a malicious change (e.g. in a build script, test file, or Makefile)
+#     - 2. The 'pull_request_target'/'workflow_run' workflow runs with access to the repository's secrets and a privileged GITHUB_TOKEN
+#     - 3. A later step builds, tests, or otherwise executes the checked-out fork code, running the attacker's payload with that privileged access
+#     - 4. The attacker's payload exfiltrates secrets, or uses the privileged token to push code, create releases, or otherwise compromise the repository
+default workflow_checks_out_untrusted_code_on_privileged_trigger := true
+
+workflow_checks_out_untrusted_code_on_privileged_trigger := false {
+	is_array(input.dangerous_workflow_triggers)
+	count(input.dangerous_workflow_triggers) == 0
+}
+
+# METADATA
+# scope: rule
 # title: Default Workflow Token Permission Should Be Set To Read Only
 # description: The default GitHub Action workflow token permission is set to read-write. When creating workflow tokens, it is highly recommended to follow the Principle of Least Privilege and force workflow authors to specify explicitly which permissions they need.
 # custom:
