@@ -21,10 +21,11 @@ type Enterprise struct {
 	MembersCanDeleteRepositoriesSetting           string                             `json:"member_can_delete_repository"`
 	NotificationDeliveryRestrictionEnabledSetting string                             `json:"notification_delivery_restriction_enabled"`
 	CodeAndSecurityPolicySettings                 *types.AnalysisAndSecurityPolicies `json:"code_analysis_and_security_policies"`
+	AuditLogStreamingEnabled                      bool                               `json:"audit_log_streaming_enabled"`
 }
 
 func NewEnterprise(membersCanChangeRepositoryVisibilitySetting string, name string, Url string, Id int64, isAdmin bool, repositoriesForkingPolicy string,
-	externalCollaboratorsInvitePolicy string, membersCanCreatePublicRepositoriesSetting bool, twoFactorRequiredSetting string, defaultRepositoryPermissionSetting string, membersCanDeleteRepositoriesSetting string, notificationDeliveryRestrictionEnabledSetting string, samlEnabled bool, codeAndSecurityPolicySettings *types.AnalysisAndSecurityPolicies) Enterprise {
+	externalCollaboratorsInvitePolicy string, membersCanCreatePublicRepositoriesSetting bool, twoFactorRequiredSetting string, defaultRepositoryPermissionSetting string, membersCanDeleteRepositoriesSetting string, notificationDeliveryRestrictionEnabledSetting string, samlEnabled bool, codeAndSecurityPolicySettings *types.AnalysisAndSecurityPolicies, auditLogStreamingEnabled bool) Enterprise {
 	UserRole := permissions.EnterpriseNonAdminRole
 	if isAdmin {
 		UserRole = permissions.EnterpriseAdminRole
@@ -44,6 +45,7 @@ func NewEnterprise(membersCanChangeRepositoryVisibilitySetting string, name stri
 		MembersCanDeleteRepositoriesSetting:           membersCanDeleteRepositoriesSetting,
 		NotificationDeliveryRestrictionEnabledSetting: notificationDeliveryRestrictionEnabledSetting,
 		CodeAndSecurityPolicySettings:                 codeAndSecurityPolicySettings,
+		AuditLogStreamingEnabled:                      auditLogStreamingEnabled,
 	}
 }
 

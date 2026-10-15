@@ -24,3 +24,12 @@ type AnalysisAndSecurityPolicies struct {
 	SecretScanningPushProtectionEnabledForNewRepos bool   `json:"secret_scanning_push_protection_enabled_for_new_repositories"`
 	SecretScanningPushProtectionCustomLink         string `json:"secret_scanning_push_protection_custom_link"`
 }
+
+// AuditLogStreamConfig describes a single audit log streaming configuration for an
+// enterprise, as returned by the "List audit log stream configurations for an enterprise"
+// REST API. This endpoint isn't modeled by go-github yet.
+// GitHub API docs: https://docs.github.com/en/enterprise-cloud@latest/rest/enterprise-admin/audit-log
+type AuditLogStreamConfig struct {
+	Enabled    bool   `json:"enabled"`
+	StreamType string `json:"stream_type"`
+}

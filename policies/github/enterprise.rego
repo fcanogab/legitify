@@ -232,3 +232,24 @@ default enable_email_notification_to_verified_domains := true
 enable_email_notification_to_verified_domains := false {
 	input.notification_delivery_restriction_enabled == "ENABLED"
 }
+
+# METADATA
+# scope: rule
+# title: Enterprise Should Stream Audit Logs To An External Destination
+# description: GitHub Enterprise Cloud supports streaming audit log events to an external log management service, such as Splunk, Datadog, or an Amazon S3/Azure Blob/Google Cloud Storage bucket. Streaming audit logs to a centralized, external destination makes it possible to retain, correlate, and alert on activity across the enterprise, independently of GitHub's own retention policy.
+# custom:
+#   severity: MEDIUM
+#   remediationSteps:
+#     - 1. Make sure you are an enterprise owner
+#     - 2. Go to the Enterprise Settings page
+#     - 3. Under the 'Settings' tab choose 'Audit log'
+#     - 4. Select the 'Log streaming' tab
+#     - 5. Configure and enable a streaming endpoint for one of the supported providers
+#   requiredScopes: [admin:enterprise]
+#   threat:
+#     - Without audit logs being forwarded to a centralized, external system, security teams may lose visibility into malicious activity if an attacker covers their tracks by deleting or disabling logging within GitHub, and historical data may be lost once GitHub's audit log retention period expires.
+default enterprise_not_streaming_audit_logs := true
+
+enterprise_not_streaming_audit_logs := false {
+	input.audit_log_streaming_enabled == true
+}
