@@ -59,6 +59,7 @@ func (c *groupCollector) Collect() collectors.SubCollectorChannels {
 				}
 
 				isPremium := c.Client.IsGroupPremium(g.FullPath)
+				isUltimate := c.Client.IsGroupUltimate(g.FullPath)
 
 				hooks, err := c.Client.GroupHooks(fullGroup.ID)
 
@@ -67,15 +68,17 @@ func (c *groupCollector) Collect() collectors.SubCollectorChannels {
 				}
 
 				samlEnabled := c.collectGroupSamlData(fullGroup, isPremium)
+				auditLogStreamingEnabled := c.collectGroupAuditLogStreamingData(fullGroup, isUltimate)
 
 				entity := gitlab_collected.Organization{
-					Group:       fullGroup,
-					Hooks:       hooks,
-					SamlEnabled: samlEnabled,
+					Group:                    fullGroup,
+					Hooks:                    hooks,
+					SamlEnabled:              samlEnabled,
+					AuditLogStreamingEnabled: auditLogStreamingEnabled,
 				}
 
 				c.CollectDataWithContext(entity, g.WebURL,
-					newCollectionContext(g, []permissions.RepositoryRole{permissions.RepoRoleAdmin}, isPremium))
+					newCollectionContext(g, []permissions.RepositoryRole{permissions.RepoRoleAdmin}, isPremium, isUltimate))
 				c.CollectionChangeByOne()
 			})
 		}
@@ -101,4 +104,23 @@ func (c *groupCollector) collectGroupSamlData(group *gitlab2.Group, isPremium bo
 	}
 
 	return samlEnabled
+}
+
+// collectGroupAuditLogStreamingData checks whether audit event streaming to an external
+// destination is configured for the group. Audit event streaming destinations are a
+// GitLab Ultimate feature available only for top-level groups, so it is skipped
+// (returning nil, i.e. "unknown") for subgroups, non-Ultimate groups, or when the request
+// fails (e.g. due to insufficient permissions).
+func (c *groupCollector) collectGroupAuditLogStreamingData(group *gitlab2.Group, isUltimate bool) *bool {
+	if !isUltimate || group.ParentID != 0 {
+		return nil
+	}
+
+	enabled, err := c.Client.GroupAuditEventStreamingEnabled(group.FullPath)
+	if err != nil {
+		log.Printf("failed to collect audit log streaming data for group %d - %s: %s", group.ID, group.Name, err)
+		return nil
+	}
+
+	return &enabled
 }

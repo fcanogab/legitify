@@ -22,6 +22,12 @@ func (c *collectedDataContext) Premium() bool {
 	return c.organization.IsEnterprise()
 }
 
+// Ultimate is not a meaningful distinction on GitHub; mirror Premium() so the
+// "ultimate" prerequisite (used only by GitLab policies) is a no-op here.
+func (c *collectedDataContext) Ultimate() bool {
+	return c.Premium()
+}
+
 func (c *collectedDataContext) Roles() []permissions.Role {
 	return c.roles
 }

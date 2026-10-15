@@ -25,6 +25,9 @@ func NewSkipper(ctx context.Context) Skipper {
 			"premium": func(data collectors.CollectedData) bool {
 				return data.Context.Premium()
 			},
+			"ultimate": func(data collectors.CollectedData) bool {
+				return data.Context.Ultimate()
+			},
 			"scorecard_enabled": func(data collectors.CollectedData) bool {
 				return context_utils.GetScorecardEnabled(ctx)
 			},

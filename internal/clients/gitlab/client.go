@@ -12,6 +12,7 @@ import (
 	"github.com/Legit-Labs/legitify/internal/common/permissions"
 	"github.com/Legit-Labs/legitify/internal/common/slice_utils"
 	"github.com/Legit-Labs/legitify/internal/common/types"
+	"github.com/shurcooL/graphql"
 	"github.com/xanzy/go-gitlab"
 )
 
@@ -20,15 +21,20 @@ const (
 )
 
 type Client struct {
-	context  context.Context
-	client   *gitlab.Client
-	orgs     []string
-	isAdmin  bool
-	endpoint string
+	context       context.Context
+	client        *gitlab.Client
+	graphQLClient *graphql.Client
+	orgs          []string
+	isAdmin       bool
+	endpoint      string
 }
 
 func (c *Client) Client() *gitlab.Client {
 	return c.client
+}
+
+func (c *Client) GraphQLClient() *graphql.Client {
+	return c.graphQLClient
 }
 
 func NewClient(ctx context.Context, token string, endpoint string, orgs []string) (*Client, error) {
@@ -50,14 +56,26 @@ func NewClient(ctx context.Context, token string, endpoint string, orgs []string
 	}
 
 	result := &Client{
-		context:  ctx,
-		client:   git,
-		orgs:     orgs,
-		isAdmin:  IsAdmin(git),
-		endpoint: endpoint,
+		context:       ctx,
+		client:        git,
+		graphQLClient: graphql.NewClient(graphQLUrl(endpoint), transport.NewGraphQLHttpClient(token)),
+		orgs:          orgs,
+		isAdmin:       IsAdmin(git),
+		endpoint:      endpoint,
 	}
 
 	return result, nil
+}
+
+// graphQLUrl derives the "/api/graphql" endpoint from the configured REST base URL
+// (empty for GitLab.com), since GitLab's GraphQL API isn't wrapped by go-gitlab.
+func graphQLUrl(endpoint string) string {
+	base := endpoint
+	if base == "" {
+		base = "https://gitlab.com"
+	}
+
+	return strings.TrimRight(base, "/") + "/api/graphql"
 }
 
 func (c *Client) ServerUrl() string {
@@ -220,6 +238,20 @@ func (c *Client) IsGroupPremium(group string) bool {
 	return plan != "free"
 }
 
+// IsGroupUltimate reports whether the root namespace of the given group/project is on the
+// Ultimate plan, which gates features such as audit event streaming. Unlike IsGroupPremium,
+// legacy tier aliases (e.g. "gold") aren't handled.
+func (c *Client) IsGroupUltimate(group string) bool {
+	groupRootNamespace := strings.Split(group, "/")[0]
+	plan, err := c.GroupPlan(groupRootNamespace)
+	if err != nil {
+		log.Printf("failed to get namespace for group %s %v", group, err)
+		return false
+	}
+
+	return plan == "ultimate"
+}
+
 // GroupSamlEnabled reports whether SAML SSO is configured for the given top-level group.
 //
 // GitLab does not expose a simple "SSO enabled" boolean through the Groups API (REST or
@@ -283,4 +315,42 @@ func (c *Client) ProjectSecretPushProtectionEnabled(projectID int) (*bool, error
 	}
 
 	return project.SecretPushProtectionEnabled, nil
+}
+
+// groupAuditEventDestinationsQuery mirrors the GraphQL query documented at
+// https://docs.gitlab.com/api/graphql/audit_event_streaming_groups/#list-streaming-destinations
+type groupAuditEventDestinationsQuery struct {
+	Group struct {
+		ExternalAuditEventDestinations struct {
+			Nodes []struct {
+				ID string
+			}
+		} `graphql:"externalAuditEventDestinations"`
+	} `graphql:"group(fullPath: $fullPath)"`
+}
+
+// GroupAuditEventStreamingEnabled reports whether at least one external audit event
+// streaming destination is configured for the given top-level group, i.e. whether the
+// group's audit events are being forwarded to an external system (SIEM, log management
+// service, etc.) in addition to being retained within GitLab itself.
+//
+// Audit event streaming is a GitLab Ultimate feature available only for top-level groups,
+// and - unlike most of the features legitify checks - it is exposed exclusively through the
+// GraphQL API; no REST endpoint exists for it. See:
+// https://docs.gitlab.com/user/compliance/audit_event_streaming/
+//
+// This requires the Owner role on the (top-level) group, so callers should expect errors
+// for non-Ultimate groups, subgroups, or insufficient permissions.
+func (c *Client) GroupAuditEventStreamingEnabled(fullPath string) (bool, error) {
+	var query groupAuditEventDestinationsQuery
+	variables := map[string]interface{}{
+		"fullPath": graphql.ID(fullPath),
+	}
+
+	err := c.GraphQLClient().Query(c.context, &query, variables)
+	if err != nil {
+		return false, err
+	}
+
+	return len(query.Group.ExternalAuditEventDestinations.Nodes) > 0, nil
 }
