@@ -768,3 +768,41 @@ func TestGitlabRepositoryRestrictsOverrideVariables(t *testing.T) {
 		repositoryTestTemplate(t, name, makeMockData(flag), testedPolicyName, expectFailure, scm_type.GitLab)
 	}
 }
+
+func TestGitlabRepositoryRenovateEnabled(t *testing.T) {
+	name := "Project Should Have Automated Dependency Updates Enabled"
+	testedPolicyName := "renovate_not_enabled"
+
+	type renovateMock struct {
+		configPath string
+		branches   []string
+	}
+
+	makeMockData := func(m renovateMock) gitlabcollected.Repository {
+		return gitlabcollected.Repository{
+			RenovateConfigPath: m.configPath,
+			RenovateBranches:   m.branches,
+		}
+	}
+
+	falseCase := []renovateMock{
+		{configPath: "renovate.json"},
+		{configPath: ".gitlab/renovate.json5"},
+		{branches: []string{"renovate/pin-dependencies"}},
+		{configPath: "renovate.json", branches: []string{"renovate/pin-dependencies"}},
+	}
+	trueCase := []renovateMock{
+		{},
+		{branches: []string{}},
+	}
+	options := map[bool][]renovateMock{
+		false: falseCase,
+		true:  trueCase,
+	}
+
+	for _, expectFailure := range bools {
+		for _, testCase := range options[expectFailure] {
+			repositoryTestTemplate(t, name, makeMockData(testCase), testedPolicyName, expectFailure, scm_type.GitLab)
+		}
+	}
+}

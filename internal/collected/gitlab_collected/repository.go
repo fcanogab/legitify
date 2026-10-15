@@ -14,6 +14,8 @@ type Repository struct {
 	ApprovalConfiguration    *gitlab2.ProjectApprovals      `json:"approval_configuration"`
 	ApprovalRules            []*gitlab2.ProjectApprovalRule `json:"approval_rules"`
 	MinimumRequiredApprovals int                            `json:"minimum_required_approvals"`
+	RenovateConfigPath       string                         `json:"renovate_config_path,omitempty"`
+	RenovateBranches         []string                       `json:"renovate_branches,omitempty"`
 }
 
 func (r Repository) ViolationEntityType() string {

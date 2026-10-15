@@ -3,6 +3,8 @@ package gitlab
 import (
 	"context"
 	"log"
+	"net/http"
+	"strings"
 	"sync/atomic"
 
 	"github.com/Legit-Labs/legitify/internal/clients/gitlab"
@@ -17,6 +19,27 @@ import (
 
 	"github.com/Legit-Labs/legitify/internal/common/namespace"
 )
+
+// renovateConfigPaths lists the file paths Renovate recognizes as a valid
+// onboarding/configuration file. Order matters only for which path gets
+// reported first when multiple are present (see renovate docs:
+// https://docs.renovatebot.com/configuration-options/).
+var renovateConfigPaths = []string{
+	"renovate.json",
+	"renovate.json5",
+	".renovaterc",
+	".renovaterc.json",
+	".renovaterc.json5",
+	".gitlab/renovate.json",
+	".gitlab/renovate.json5",
+	".github/renovate.json",
+	".github/renovate.json5",
+}
+
+// renovateBranchPrefix is Renovate's default branchPrefix. Branches created
+// by Renovate (self-hosted or via its GitLab integration) are named
+// "renovate/<...>" unless the prefix was customized.
+const renovateBranchPrefix = "renovate/"
 
 type repositoryCollector struct {
 	collectors.BaseCollector
@@ -166,6 +189,66 @@ func (rc *repositoryCollector) extendProjectWithApprovalConfiguration(project gi
 	return extendedProject, nil
 }
 
+func (rc *repositoryCollector) extendProjectWithRenovateStatus(project gitlab_collected.Repository) (gitlab_collected.Repository, error) {
+	extendedProject := project
+
+	configPath, err := rc.findRenovateConfigFile(project)
+	if err != nil {
+		log.Printf("failed to check for renovate config file in project %s: %s", project.Name(), err)
+	}
+	extendedProject.RenovateConfigPath = configPath
+
+	branches, err := rc.findRenovateBranches(project)
+	if err != nil {
+		log.Printf("failed to list branches to detect renovate for project %s: %s", project.Name(), err)
+	}
+	extendedProject.RenovateBranches = branches
+
+	return extendedProject, nil
+}
+
+func (rc *repositoryCollector) findRenovateConfigFile(project gitlab_collected.Repository) (string, error) {
+	ref := project.DefaultBranch
+
+	for _, path := range renovateConfigPaths {
+		opts := &gitlab2.GetFileMetaDataOptions{}
+		if ref != "" {
+			opts.Ref = gitlab2.String(ref)
+		}
+
+		_, resp, err := rc.Client.Client().RepositoryFiles.GetFileMetaData(int(project.ID()), path, opts)
+		if err != nil {
+			if resp != nil && resp.StatusCode == http.StatusNotFound {
+				continue // expected: this candidate path doesn't exist, keep trying others
+			}
+			return "", err
+		}
+
+		return path, nil
+	}
+
+	return "", nil
+}
+
+func (rc *repositoryCollector) findRenovateBranches(project gitlab_collected.Repository) ([]string, error) {
+	res, err := pagination.New[*gitlab2.Branch](rc.Client.Client().Branches.ListBranches,
+		&gitlab2.ListBranchesOptions{Search: gitlab2.String(renovateBranchPrefix)}).Sync(int(project.ID()))
+	if err != nil {
+		return nil, err
+	}
+
+	var branches []string
+	for _, b := range res.Collected {
+		// the GitLab "search" filter matches substrings/regex, so re-validate
+		// the prefix explicitly rather than trusting the server-side filter.
+		if strings.HasPrefix(b.Name, renovateBranchPrefix) {
+			branches = append(branches, b.Name)
+		}
+	}
+
+	return branches, nil
+}
+
 func (rc *repositoryCollector) extendProjectWithMinimumRequiredApprovals(project gitlab_collected.Repository) (gitlab_collected.Repository, error) {
 	minRequiredApprovals := 0
 
@@ -221,6 +304,7 @@ func (rc *repositoryCollector) extendedCollection(completeProjectsList *gitlab2.
 		rc.extendProjectWithMergeRequestApprovalRules,
 		rc.extendProjectWithApprovalConfiguration,
 		rc.extendProjectWithMinimumRequiredApprovals,
+		rc.extendProjectWithRenovateStatus,
 	}
 	var err error
 	for _, f := range extensionFunctions {
