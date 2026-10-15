@@ -27,6 +27,7 @@ type Client struct {
 	orgs          []string
 	isAdmin       bool
 	endpoint      string
+	scopes        permissions.TokenScopes
 }
 
 func (c *Client) Client() *gitlab.Client {
@@ -62,9 +63,30 @@ func NewClient(ctx context.Context, token string, endpoint string, orgs []string
 		orgs:          orgs,
 		isAdmin:       IsAdmin(git),
 		endpoint:      endpoint,
+		scopes:        collectTokenScopes(git),
 	}
 
 	return result, nil
+}
+
+// collectTokenScopes asks GitLab for the scopes granted to the token used to authenticate
+// this client, via the token self-introspection endpoint (GET /personal_access_tokens/self,
+// available since GitLab 16.0). See:
+// https://docs.gitlab.com/api/personal_access_tokens/#get-single-personal-access-token
+//
+// This endpoint only recognizes personal/project/group access tokens; other authentication
+// methods (e.g. OAuth tokens, CI job tokens) or older GitLab versions will cause it to fail.
+// Scope-gated policies simply get skipped as "missing permission" in that case, same as
+// before this scope collection existed, so failures here are logged and otherwise ignored
+// rather than aborting the run.
+func collectTokenScopes(client *gitlab.Client) permissions.TokenScopes {
+	pat, _, err := client.PersonalAccessTokens.GetSinglePersonalAccessToken()
+	if err != nil {
+		log.Printf("failed to collect token scopes, scope-gated policies will be skipped: %v", err)
+		return permissions.TokenScopes{}
+	}
+
+	return permissions.ParseTokenScopes(pat.Scopes)
 }
 
 // graphQLUrl derives the "/api/graphql" endpoint from the configured REST base URL
@@ -95,7 +117,7 @@ func (c *Client) IsAnalyzable(repo types.RepositoryWithOwner) (bool, error) {
 }
 
 func (c *Client) Scopes() permissions.TokenScopes {
-	return permissions.TokenScopes{}
+	return c.scopes
 }
 
 func (c *Client) Organizations() ([]types.Organization, error) {
