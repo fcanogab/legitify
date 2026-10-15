@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"strings"
 
 	"github.com/Legit-Labs/legitify/internal/clients/gitlab/pagination"
@@ -217,4 +218,43 @@ func (c *Client) IsGroupPremium(group string) bool {
 	}
 
 	return plan != "free"
+}
+
+// GroupSamlEnabled reports whether SAML SSO is configured for the given top-level group.
+//
+// GitLab does not expose a simple "SSO enabled" boolean through the Groups API (REST or
+// GraphQL), so this relies on the behavior of the SAML API instead: GET
+// /groups/:id/saml/identities returns 400 Bad Request when the group has no SAML provider
+// configured, and 200 OK (with a possibly empty list of identities) when it does.
+// See: https://docs.gitlab.com/api/saml/#list-all-saml-identities-for-a-group
+//
+// This endpoint is only available on GitLab Premium/Ultimate and requires the Owner role
+// on the (top-level) group, so callers should expect errors for Free-tier groups, non-owner
+// tokens, or subgroups (SSO can only be configured on top-level groups).
+func (c *Client) GroupSamlEnabled(groupID int) (*bool, error) {
+	u := fmt.Sprintf("groups/%d/saml/identities", groupID)
+	req, err := c.client.NewRequest(http.MethodGet, u, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var identities []interface{}
+	resp, err := c.client.Do(req, &identities)
+	if resp != nil {
+		switch resp.StatusCode {
+		case http.StatusOK:
+			enabled := true
+			return &enabled, nil
+		case http.StatusBadRequest:
+			disabled := false
+			return &disabled, nil
+		}
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	enabled := true
+	return &enabled, nil
 }

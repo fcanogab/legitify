@@ -7,7 +7,8 @@ import (
 
 type Organization struct {
 	*gitlab.Group
-	Hooks []*gitlab.GroupHook `json:"hooks"`
+	Hooks       []*gitlab.GroupHook `json:"hooks"`
+	SamlEnabled *bool               `json:"saml_enabled,omitempty"`
 }
 
 func (o Organization) ViolationEntityType() string {
