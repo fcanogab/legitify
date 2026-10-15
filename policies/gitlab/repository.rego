@@ -383,3 +383,21 @@ renovate_not_enabled := false {
 renovate_not_enabled := false {
 	count(input.renovate_branches) > 0
 }
+
+# METADATA
+# scope: rule
+# title: Secret Push Protection Should Be Enabled
+# description: >
+#     Secret push protection is not enabled for this project. When enabled, GitLab scans the content of each push for high-confidence secrets (such as API keys and tokens) and blocks the push if any are detected, reducing the risk of secrets being leaked into the repository's history. On GitLab Self-Managed/Dedicated, secret push protection must additionally be allowed on the instance before it can be enabled per-project, and for private projects it currently requires a GitLab Ultimate license (it is enabled by default for public projects on all tiers).
+# custom:
+#   remediationSteps:
+#     - 1. Enter your project's landing page
+#     - 2. Go to the left sidebar and select 'Secure' -> 'Security configuration'
+#     - 3. Turn on 'Secret push protection'
+#   severity: MEDIUM
+#   threat: Exposed secrets increase the risk of sensitive information such as API keys, passwords, and tokens being disclosed, leading to unauthorized access to systems and services, and data breaches.
+default secret_push_protection_not_enabled := true
+
+secret_push_protection_not_enabled := false {
+	input.secret_push_protection_enabled
+}

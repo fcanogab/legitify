@@ -258,3 +258,29 @@ func (c *Client) GroupSamlEnabled(groupID int) (*bool, error) {
 	enabled := true
 	return &enabled, nil
 }
+
+// ProjectSecretPushProtectionEnabled reports whether GitLab's secret push protection is
+// enabled for the given project. Secret push protection scans commits for secrets when
+// changes are pushed and blocks the push if any high-confidence secrets are detected.
+// See: https://docs.gitlab.com/user/application_security/secret_detection/secret_push_protection/
+//
+// The attribute isn't modeled by go-gitlab's Project struct yet, even though the GitLab
+// REST API already returns it as part of the regular project representation (GET
+// /projects/:id), so a raw request is used instead of the typed Projects.GetProject call.
+func (c *Client) ProjectSecretPushProtectionEnabled(projectID int) (*bool, error) {
+	u := fmt.Sprintf("projects/%d", projectID)
+	req, err := c.client.NewRequest(http.MethodGet, u, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var project struct {
+		SecretPushProtectionEnabled *bool `json:"secret_push_protection_enabled"`
+	}
+	_, err = c.client.Do(req, &project)
+	if err != nil {
+		return nil, err
+	}
+
+	return project.SecretPushProtectionEnabled, nil
+}

@@ -249,6 +249,17 @@ func (rc *repositoryCollector) findRenovateBranches(project gitlab_collected.Rep
 	return branches, nil
 }
 
+func (rc *repositoryCollector) extendProjectWithSecretPushProtection(project gitlab_collected.Repository) (gitlab_collected.Repository, error) {
+	enabled, err := rc.Client.ProjectSecretPushProtectionEnabled(int(project.ID()))
+	if err != nil {
+		log.Printf("failed to get secret push protection status for project %s: %s", project.Name(), err)
+		return project, err
+	}
+	extendedProject := project
+	extendedProject.SecretPushProtectionEnabled = enabled
+	return extendedProject, nil
+}
+
 func (rc *repositoryCollector) extendProjectWithMinimumRequiredApprovals(project gitlab_collected.Repository) (gitlab_collected.Repository, error) {
 	minRequiredApprovals := 0
 
@@ -305,6 +316,7 @@ func (rc *repositoryCollector) extendedCollection(completeProjectsList *gitlab2.
 		rc.extendProjectWithApprovalConfiguration,
 		rc.extendProjectWithMinimumRequiredApprovals,
 		rc.extendProjectWithRenovateStatus,
+		rc.extendProjectWithSecretPushProtection,
 	}
 	var err error
 	for _, f := range extensionFunctions {
