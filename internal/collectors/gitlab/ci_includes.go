@@ -141,17 +141,25 @@ func (rc *repositoryCollector) collectUnpinnedCIIncludes(projectID int, ref, pat
 // may be a single string/mapping, or a list of either) and splits it into local
 // includes to be followed further, and external includes to be evaluated for pinning.
 func parseCIIncludes(content []byte) ([]localCIInclude, []externalCIInclude, error) {
+	// Include is deliberately a yaml.Node by value, not *yaml.Node: gopkg.in/yaml.v3's
+	// decoder only special-cases the Node type when the destination's reflect.Type is
+	// exactly yaml.Node, which is checked *before* it dereferences pointer fields. A
+	// *yaml.Node struct field therefore misses that fast path and falls through to the
+	// generic decode logic, which fails outright for sequence/scalar values (e.g. a
+	// list-style `include:`, by far the most common form) and silently yields an empty,
+	// useless node for mapping values. Keeping Include a non-pointer yaml.Node sidesteps
+	// the bug entirely, since every `include:` shape then decodes correctly.
 	var doc struct {
-		Include *yaml.Node `yaml:"include"`
+		Include yaml.Node `yaml:"include"`
 	}
 	if err := yaml.Unmarshal(content, &doc); err != nil {
 		return nil, nil, err
 	}
-	if doc.Include == nil {
+	if doc.Include.IsZero() {
 		return nil, nil, nil
 	}
 
-	return parseIncludeNode(doc.Include)
+	return parseIncludeNode(&doc.Include)
 }
 
 func parseIncludeNode(node *yaml.Node) ([]localCIInclude, []externalCIInclude, error) {
