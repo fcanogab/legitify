@@ -9,13 +9,17 @@ import (
 
 type CollectedDataContext interface {
 	Premium() bool
+	// Ultimate reports whether the entity's plan grants access to GitLab Ultimate-only
+	// features (e.g. audit event streaming). It has no meaning on GitHub, where
+	// implementers simply mirror Premium().
+	Ultimate() bool
 	Roles() []permissions.Role
 }
 
 type CollectedDataRepositoryContext interface {
 	CollectedDataContext
 	HasBranchProtectionPermission() bool
-	HasGithubAdvancedSecurity()     bool
+	HasGithubAdvancedSecurity() bool
 }
 
 type CollectedData struct {

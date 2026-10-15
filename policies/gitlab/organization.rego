@@ -128,3 +128,29 @@ group_not_using_single_sign_on := false {
 group_not_using_single_sign_on := false {
 	input.saml_enabled
 }
+
+# METADATA
+# scope: rule
+# title: Group Should Stream Audit Events To An External Destination
+# description: GitLab Ultimate top-level groups can stream their audit events to an external destination (for example a SIEM or log management service) as structured JSON. Streaming audit events to a centralized, external destination makes it possible to retain, correlate, and alert on activity in the group, its subgroups and projects, independently of GitLab's own audit log retention.
+# custom:
+#   severity: MEDIUM
+#   prerequisites: [ultimate]
+#   remediationSteps:
+#     - 1. Make sure you have the Owner role for the top-level group
+#     - 2. Go to the group page
+#     - 3. Select Secure -> Audit events
+#     - 4. Select the 'Streams' tab
+#     - 5. Select 'Add streaming destination', choose 'HTTP endpoint' and fill in a destination URL for your log management service
+#   threat:
+#     - Without audit events being forwarded to a centralized, external system, security teams may lose visibility into malicious activity if an attacker covers their tracks by deleting or disabling logging within GitLab, and historical data may be lost once GitLab's audit log retention period expires.
+default group_not_streaming_audit_events := true
+
+# Audit event streaming destinations can only be configured for top-level groups, so subgroups are not applicable.
+group_not_streaming_audit_events := false {
+	input.parent_id != 0
+}
+
+group_not_streaming_audit_events := false {
+	input.audit_log_streaming_enabled
+}

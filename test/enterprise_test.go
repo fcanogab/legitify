@@ -54,6 +54,36 @@ func enterpriseTestTemplate(t *testing.T, name string, mockData githubcollected.
 	PolicyTestTemplate(t, name, mockData, ns, testedPolicyName, expectFailure, scmType)
 }
 
+func TestEnterpriseAuditLogStreamingPolicy(t *testing.T) {
+	testedPolicyName := "enterprise_not_streaming_audit_logs"
+
+	tests := []struct {
+		name             string
+		shouldBeViolated bool
+		streamingEnabled bool
+	}{
+		{
+			name:             "Audit log streaming is enabled",
+			shouldBeViolated: false,
+			streamingEnabled: true,
+		},
+		{
+			name:             "Audit log streaming is not enabled",
+			shouldBeViolated: true,
+			streamingEnabled: false,
+		},
+	}
+
+	for _, test := range tests {
+		mockData := githubcollected.Enterprise{
+			EnterpriseName:           "name",
+			Url:                      "url",
+			AuditLogStreamingEnabled: test.streamingEnabled,
+		}
+		enterpriseTestTemplate(t, test.name, mockData, testedPolicyName, test.shouldBeViolated, scm_type.GitHub)
+	}
+}
+
 func TestGitLabServerPersonalAccessTokenExpirationPolicy(t *testing.T) {
 	testedPolicyName := "personal_access_token_expiration_not_enforced"
 	ns := namespace.Enterprise

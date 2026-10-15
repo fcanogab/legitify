@@ -16,6 +16,12 @@ func (rc *repositoryContext) Premium() bool {
 	return rc.isEnterprise
 }
 
+// Ultimate is not a meaningful distinction on GitHub; mirror Premium() so the
+// "ultimate" prerequisite (used only by GitLab policies) is a no-op here.
+func (rc *repositoryContext) Ultimate() bool {
+	return rc.Premium()
+}
+
 func (rc *repositoryContext) Roles() []permissions.Role {
 	return rc.roles
 }

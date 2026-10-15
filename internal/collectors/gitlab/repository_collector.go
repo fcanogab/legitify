@@ -108,7 +108,8 @@ func (rc *repositoryCollector) collectSpecific(repositories []types.RepositoryWi
 					return
 				}
 				isPremium := rc.Client.IsGroupPremium(r.Owner)
-				rc.extendedCollection(project, isPremium)
+				isUltimate := rc.Client.IsGroupUltimate(r.Owner)
+				rc.extendedCollection(project, isPremium, isUltimate)
 			})
 
 		}
@@ -293,7 +294,7 @@ func (rc *repositoryCollector) collectAll() collectors.SubCollectorChannels {
 					for _, completedProject := range res.Collected {
 						completedProject := completedProject
 						gw.Do(func() {
-							rc.extendedCollection(completedProject, rc.Client.IsGroupPremium(g.FullPath))
+							rc.extendedCollection(completedProject, rc.Client.IsGroupPremium(g.FullPath), rc.Client.IsGroupUltimate(g.FullPath))
 						})
 					}
 				}
@@ -303,7 +304,7 @@ func (rc *repositoryCollector) collectAll() collectors.SubCollectorChannels {
 	})
 }
 
-func (rc *repositoryCollector) extendedCollection(completeProjectsList *gitlab2.Project, isPremium bool) {
+func (rc *repositoryCollector) extendedCollection(completeProjectsList *gitlab2.Project, isPremium bool, isUltimate bool) {
 	proj := gitlab_collected.Repository{
 		Project: completeProjectsList,
 	}
@@ -327,7 +328,7 @@ func (rc *repositoryCollector) extendedCollection(completeProjectsList *gitlab2.
 	}
 
 	newContext := newCollectionContext(nil, []permissions.Role{permissions.GroupRoleOwner},
-		isPremium)
+		isPremium, isUltimate)
 	rc.CollectDataWithContext(proj, proj.Links.Self, &newContext)
 	rc.CollectionChangeByOne()
 }

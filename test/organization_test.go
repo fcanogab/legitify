@@ -228,3 +228,52 @@ func TestGitLabOrganization(t *testing.T) {
 			namespace.Organization, policyName, test.shouldBeViolated, scm_type.GitLab)
 	}
 }
+
+func newGitLabGroupAuditLogStreamingMock(streamingEnabled *bool, parentID int) gitlabcollected.Organization {
+	return gitlabcollected.Organization{
+		Group: &gitlab2.Group{
+			ParentID: parentID,
+		},
+		AuditLogStreamingEnabled: streamingEnabled,
+	}
+}
+
+func TestGitLabOrganizationAuditLogStreaming(t *testing.T) {
+	boolTrue := true
+	boolFalse := false
+	policyName := "group_not_streaming_audit_events"
+
+	tests := []struct {
+		name             string
+		shouldBeViolated bool
+		streamingEnabled *bool
+		parentID         int
+	}{
+		{
+			name:             "Audit log streaming is disabled for a top-level group",
+			shouldBeViolated: true,
+			streamingEnabled: &boolFalse,
+		},
+		{
+			name:             "Audit log streaming is enabled for a top-level group",
+			shouldBeViolated: false,
+			streamingEnabled: &boolTrue,
+		},
+		{
+			name:             "Audit log streaming status unknown for a top-level group (e.g. non-Ultimate or missing permissions)",
+			shouldBeViolated: true,
+			streamingEnabled: nil,
+		},
+		{
+			name:             "Subgroups are not applicable regardless of audit log streaming status",
+			shouldBeViolated: false,
+			streamingEnabled: nil,
+			parentID:         1,
+		},
+	}
+
+	for _, test := range tests {
+		PolicyTestTemplate(t, test.name, newGitLabGroupAuditLogStreamingMock(test.streamingEnabled, test.parentID),
+			namespace.Organization, policyName, test.shouldBeViolated, scm_type.GitLab)
+	}
+}

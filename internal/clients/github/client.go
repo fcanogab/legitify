@@ -573,6 +573,7 @@ func (c *Client) collectSpecificEnterprises() ([]githubcollected.Enterprise, err
 		if err != nil {
 			log.Printf("failed to get code security settings for enterprise %v: %v", enterprise, err)
 		}
+		auditLogStreamingEnabled := c.HasEnabledAuditLogStream(enterprise)
 		newEnter := githubcollected.NewEnterprise(
 			enterpriseQuery.Enterprise.OwnerInfo.MembersCanChangeRepositoryVisibilitySetting,
 			enterpriseQuery.Enterprise.Name,
@@ -587,7 +588,8 @@ func (c *Client) collectSpecificEnterprises() ([]githubcollected.Enterprise, err
 			enterpriseQuery.Enterprise.OwnerInfo.MembersCanDeleteRepositoriesSetting,
 			enterpriseQuery.Enterprise.OwnerInfo.NotificationDeliveryRestrictionEnabledSetting,
 			samlEnabled,
-			codeAndSecurityPolicySettings)
+			codeAndSecurityPolicySettings,
+			auditLogStreamingEnabled)
 		res = append(res, newEnter)
 
 	}
@@ -634,6 +636,46 @@ func (c *Client) GetSecurityAndAnalysisForEnterprise(enterprise string) (*types.
 		return nil, err
 	}
 	return &p, nil
+}
+
+// GetAuditLogStreams lists the audit log streaming configurations for an enterprise, i.e.
+// the destinations (Splunk, Datadog, Amazon S3, etc.) that the enterprise's audit log is
+// forwarded to. This is a GitHub Enterprise Cloud (and GHES 3.16+) feature not modeled by
+// go-github yet, so a raw request is used instead of a typed client call.
+// GitHub API docs: https://docs.github.com/en/enterprise-cloud@latest/rest/enterprise-admin/audit-log
+func (c *Client) GetAuditLogStreams(enterprise string) ([]*types.AuditLogStreamConfig, error) {
+	url := fmt.Sprintf("/api/v3/enterprises/%v/audit-log/streams", enterprise)
+	req, err := c.client.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var streams []*types.AuditLogStreamConfig
+	_, err = c.client.Do(c.context, req, &streams)
+	if err != nil {
+		return nil, err
+	}
+	return streams, nil
+}
+
+// HasEnabledAuditLogStream reports whether the enterprise has at least one active (i.e. not
+// paused) audit log streaming configuration. It fails open (returns false) when the
+// streaming configuration can't be retrieved, e.g. insufficient permissions, the enterprise
+// isn't on a plan that supports streaming, or an older GHES version that predates the API.
+func (c *Client) HasEnabledAuditLogStream(enterprise string) bool {
+	streams, err := c.GetAuditLogStreams(enterprise)
+	if err != nil {
+		log.Printf("failed to get audit log streams for enterprise %v: %v", enterprise, err)
+		return false
+	}
+
+	for _, stream := range streams {
+		if stream.Enabled {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (c *Client) GetRepositorySecrets(repo, owner string) (*gh.Secrets, error) {
