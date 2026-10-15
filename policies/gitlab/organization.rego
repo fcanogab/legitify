@@ -101,3 +101,30 @@ default group_allows_excessive_mfa_grace_period := true
 group_allows_excessive_mfa_grace_period := false{
 	input.two_factor_grace_period <= 168
 }
+
+# METADATA
+# scope: rule
+# title: Group Should Use Single-Sign-On
+# description: It is recommended to enable access to a top-level group via SAML single sign-on (SSO) by authenticating through an identity provider (IdP). This allows for central account control and for timely access revocations. This setting is available only for top-level groups on GitLab Premium and Ultimate tiers.
+# custom:
+#   severity: MEDIUM
+#   prerequisites: [premium]
+#   remediationSteps:
+#     - 1. Make sure you have the Owner role for the top-level group
+#     - 2. Go to the group page
+#     - 3. Press Settings -> SAML SSO
+#     - 4. Fill in the Identity provider single sign-on URL and Certificate fingerprint fields
+#     - 5. Toggle on 'Enable SAML authentication for this group'
+#     - 6. Press 'Save changes'
+#   threat:
+#     - Not using an SSO solution makes it more difficult to track a potentially compromised user's actions across different systems, prevents the organization from defining a common password policy, and makes it challenging to audit different aspects of the user's behavior.
+default group_not_using_single_sign_on := true
+
+# SSO can only be configured for top-level groups, so subgroups are not applicable.
+group_not_using_single_sign_on := false {
+	input.parent_id != 0
+}
+
+group_not_using_single_sign_on := false {
+	input.saml_enabled
+}

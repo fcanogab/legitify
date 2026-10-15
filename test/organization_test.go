@@ -3,10 +3,12 @@ package test
 import (
 	"github.com/Legit-Labs/legitify/internal/common/scm_type"
 	"github.com/google/go-github/v53/github"
+	gitlab2 "github.com/xanzy/go-gitlab"
 	"testing"
 	"time"
 
 	githubcollected "github.com/Legit-Labs/legitify/internal/collected/github"
+	gitlabcollected "github.com/Legit-Labs/legitify/internal/collected/gitlab_collected"
 	"github.com/Legit-Labs/legitify/internal/common/namespace"
 )
 
@@ -175,5 +177,54 @@ func TestOrganization(t *testing.T) {
 	for _, test := range tests {
 		PolicyTestTemplate(t, test.name, newOrganizationMock(test.args),
 			namespace.Organization, test.policyName, test.shouldBeViolated, scm_type.GitHub)
+	}
+}
+
+func newGitLabGroupMock(samlEnabled *bool, parentID int) gitlabcollected.Organization {
+	return gitlabcollected.Organization{
+		Group: &gitlab2.Group{
+			ParentID: parentID,
+		},
+		SamlEnabled: samlEnabled,
+	}
+}
+
+func TestGitLabOrganization(t *testing.T) {
+	boolTrue := true
+	boolFalse := false
+	policyName := "group_not_using_single_sign_on"
+
+	tests := []struct {
+		name             string
+		shouldBeViolated bool
+		samlEnabled      *bool
+		parentID         int
+	}{
+		{
+			name:             "SSO should be disabled for a top-level group",
+			shouldBeViolated: true,
+			samlEnabled:      &boolFalse,
+		},
+		{
+			name:             "SSO should be enabled for a top-level group",
+			shouldBeViolated: false,
+			samlEnabled:      &boolTrue,
+		},
+		{
+			name:             "SSO status unknown for a top-level group (e.g. missing permissions)",
+			shouldBeViolated: true,
+			samlEnabled:      nil,
+		},
+		{
+			name:             "Subgroups are not applicable regardless of SSO status",
+			shouldBeViolated: false,
+			samlEnabled:      nil,
+			parentID:         1,
+		},
+	}
+
+	for _, test := range tests {
+		PolicyTestTemplate(t, test.name, newGitLabGroupMock(test.samlEnabled, test.parentID),
+			namespace.Organization, policyName, test.shouldBeViolated, scm_type.GitLab)
 	}
 }
