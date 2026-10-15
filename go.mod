@@ -16,6 +16,7 @@ require (
 	github.com/ossf/scorecard/v4 v4.10.5
 	github.com/owenrumney/go-sarif/v2 v2.1.3
 	github.com/qri-io/jsonschema v0.2.1
+	github.com/rhysd/actionlint v1.6.15
 	github.com/sashabaranov/go-openai v1.9.0
 	github.com/shurcooL/githubv4 v0.0.0-20230424031643-6cea62ecd5a9
 	github.com/shurcooL/graphql v0.0.0-20220520033453-bdb1221e171e
@@ -105,7 +106,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/qri-io/jsonpointer v0.1.1 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
-	github.com/rhysd/actionlint v1.6.15 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/robfig/cron v1.2.0 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect

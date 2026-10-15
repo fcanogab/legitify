@@ -17,6 +17,18 @@ type Repository struct {
 	RenovateConfigPath          string                         `json:"renovate_config_path,omitempty"`
 	RenovateBranches            []string                       `json:"renovate_branches,omitempty"`
 	SecretPushProtectionEnabled *bool                          `json:"secret_push_protection_enabled,omitempty"`
+	UnpinnedCIIncludes          []UnpinnedCIInclude            `json:"unpinned_ci_includes"`
+}
+
+// UnpinnedCIInclude represents a single external `include:` entry in a project's CI/CD
+// configuration (or one of its local includes) that isn't pinned to an immutable
+// reference - either a GitLab CI/CD component or project template referenced by a
+// floating branch/tag rather than a full-length commit SHA, or a `remote:` include,
+// which can never be pinned to a commit since it isn't backed by a Git ref at all.
+type UnpinnedCIInclude struct {
+	SourceFile string `json:"source_file"`
+	Type       string `json:"type"` // "project", "remote", or "component"
+	Reference  string `json:"reference"`
 }
 
 func (r Repository) ViolationEntityType() string {

@@ -73,11 +73,21 @@ type Repository struct {
 	RulesSet                     []*types.RepositoryRule           `json:"rules_set,omitempty"`
 	RepoSecrets                  []*RepositorySecret               `json:"repository_secrets,omitempty"`
 	SecurityAndAnalysis          *github.SecurityAndAnalysis       `json:"security_and_analysis,omitempty"`
+	UnpinnedActions              []UnpinnedAction                  `json:"unpinned_actions"`
 }
 
 type RepositorySecret struct {
 	Name      string `json:"name"`
 	UpdatedAt int    `json:"updated_at"`
+}
+
+// UnpinnedAction represents a single "uses:" reference (either a step's action, or a
+// reusable workflow call) found in a workflow file that isn't pinned to a full-length
+// commit SHA.
+type UnpinnedAction struct {
+	Path string `json:"path"`
+	Uses string `json:"uses"`
+	Line int    `json:"line"`
 }
 
 func (r Repository) ViolationEntityType() string {
